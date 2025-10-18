@@ -1,0 +1,37 @@
+// {
+//   "compilerOptions": {
+//     "sourceMap": true,
+//     "outDir": "dist",
+//     "strict": true,
+//     "lib": ["esnext"],
+//     "esModuleInterop": true,
+//     "rootDir": "src"
+//   },
+//   "include": ["src/"]
+// }
+
+{
+  "compilerOptions": {
+    /* Base Options: */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "rootDir": "src",
+
+    /* Strictness */
+    "strict": true,
+
+    /* If transpiling with TypeScript: */
+    "module": "NodeNext",
+    "outDir": "dist",
+    "sourceMap": true,
+
+    /* If your code doesn't run in the DOM: */
+    "lib": ["es2022"]
+  },
+  "include": ["src/"]
+}

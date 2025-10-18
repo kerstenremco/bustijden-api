@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Route {
+  route_id         String  @id
+  agency_id        String
+  route_short_name String?
+  route_long_name  String?
+  route_desc       String?
+  route_type       Int
+  route_color      String?
+  route_text_color String?
+  route_url        String?
+  Trip             Trip[]
+
+  @@map("routes")
+}
+
+model Trip {
+  route_id              String
+  route                 Route      @relation(fields: [route_id], references: [route_id])
+  service_id            Int
+  trip_id               Int        @id
+  realtime_trip_id      String?
+  trip_headsign         String?
+  trip_short_name       String?
+  trip_long_name        String?
+  direction_id          Int?
+  block_id              Int?
+  shape_id              Int?
+  wheelchair_accessible Int?
+  bikes_allowed         Int?
+  StopTime              StopTime[]
+
+  @@map("trips")
+}
+
+model Service {
+  service_id     Int
+  date           String // YYYYMMDD
+  exception_type Int // 1=added, 2=removed
+
+  @@id([service_id, date])
+  @@map("calendar_dates")
+}
+
+model StopTime {
+  trip_id       Int
+  trip          Trip    @relation(fields: [trip_id], references: [trip_id])
+  stop_sequence Int
+  stop_id       String
+  stop          Stop    @relation(fields: [stop_id], references: [stop_id])
+  stop_headsign String?
+
+  arrival_time   String
+  departure_time String
+
+  pickup_type   Int?
+  drop_off_type Int?
+
+  timepoint           Int?
+  shape_dist_traveled Float?
+  fare_units_traveled Float?
+
+  @@id([trip_id, stop_sequence])
+  @@map("stop_times")
+}
+
+model Stop {
+  stop_id             String     @id
+  stop_code           String?
+  stop_name           String?
+  stop_lat            String?
+  stop_lon            String?
+  location_type       Int?
+  parent_station      String?
+  stop_timezone       String?
+  wheelchair_boarding Int? // 0=unknown, 1=accessible, 2=not accessible
+  platform_code       String?
+  zone_id             String?
+  StopTime            StopTime[]
+
+  @@map("stops")
+}
