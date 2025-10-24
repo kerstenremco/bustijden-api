@@ -3,6 +3,7 @@ import { getCachedStop, getDelayByStopAndTrip, setCachedStop } from "./redis";
 import { BusStopTime, BusStopTimeWithRealTime, StopByName } from "./types";
 import dayjs from "dayjs";
 import { todayYyyymmdd, yyyymmddToDayjs } from "./helpers/time";
+import { stopToBaseKey } from "./helpers/stops";
 
 const prisma = new PrismaClient();
 
@@ -21,14 +22,30 @@ export async function findStops(words: string[]) {
 
   const result: StopByName[] = [];
   const unnames = new Set(stopsQuery.map((x) => x.stop_name));
-  unnames.forEach((name) => {
+  // filter strings
+  const uniqueNames = Array.from(unnames).filter(
+    (x) => x !== null && x !== undefined
+  );
+  uniqueNames.forEach((name) => {
     const stops = stopsQuery
       .filter((s) => s.stop_name == name)
       .map((s) => s.stop_id);
-    result.push({ name: name || "", stops });
+    result.push({
+      name: name,
+      baseKey: stopToBaseKey(name),
+      stops,
+    });
   });
 
   return result;
+}
+
+export async function getAllStopIds(name: string): Promise<string[]> {
+  const stops = await prisma.stop.findMany({
+    where: { stop_name: name },
+    select: { stop_id: true },
+  });
+  return stops.map((s) => s.stop_id);
 }
 
 export async function getStopTimesAtStop(

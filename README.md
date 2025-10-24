@@ -50,14 +50,14 @@ Run the importstaticdata script
 #### Get item
 
 ```http
-  GET /stop-times/stop?date=${date}&ids=${ids}
-  Example: /stop-times/stop?date=20251012&ids=3273037
+  GET /stops/${baseKey}?date=${date}
+  Example: /stops/S3JpbXBlbiBhL2QgTGVrLCBSZW1icmFuZHRzdHJhYXQ=?date=20251025
 ```
 
-| Parameter | Type     | Description                                |
-| :-------- | :------- | :----------------------------------------- |
-| `date`    | `string` | **Required**. The date, in yyyymmdd format |
-| `ids`     | `string` | **Required**. stop ids, comma seperated.   |
+| Parameter | Type     | Description                            |
+| :-------- | :------- | :------------------------------------- |
+| `baseKey` | `string` | **Required**. The baseKey of the stop. |
+| `date`    | `string` | **Optional**. Date to show, YYYYMMDD.  |
 
 ## Contributing
 

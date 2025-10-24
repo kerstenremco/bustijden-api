@@ -34,5 +34,6 @@ export interface BusStopTimeWithRealTime {
 
 export interface StopByName {
   name: string;
+  baseKey: string;
   stops: string[];
 }
