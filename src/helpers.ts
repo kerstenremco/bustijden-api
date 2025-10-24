@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { getCachedStop, getDelayByStopAndTrip, setCachedStop } from "./redis";
 import { BusStopTime, BusStopTimeWithRealTime, StopByName } from "./types";
 import dayjs from "dayjs";
-import { todayYyyymmdd } from "./helpers/time";
+import { todayYyyymmdd, yyyymmddToDayjs } from "./helpers/time";
 
 const prisma = new PrismaClient();
 
@@ -109,15 +109,9 @@ export async function getStopTimesAtStop(
     const canceled = rtime?.cancelled || false;
 
     // Calculate actual arrival time
-    const y = dateString.substring(0, 4);
-    const m = dateString.substring(4, 6);
-    const d = dateString.substring(6, 8);
     let [h, min] = stop.arrival_time.split(":").map((x) => parseInt(x));
 
-    let calculatedArrivalTime = dayjs()
-      .set("year", Number(y))
-      .set("month", Number(m) - 1)
-      .set("date", Number(d))
+    let calculatedArrivalTime = yyyymmddToDayjs(dateString)!
       .set("hour", h)
       .set("minute", min)
       .set("second", 0)
