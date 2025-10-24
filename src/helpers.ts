@@ -131,11 +131,7 @@ export async function getStopTimesAtStop(
     }
 
     // Calculate minutes until
-    const xminutesUntil = 1111;
-    const minutesUntil = calculatedArrivalTime.diff(
-      dayjs.unix(1761328800),
-      "minute"
-    );
+    const minutesUntil = calculatedArrivalTime.diff(dayjs(), "minute");
 
     // Add to result
     result.push({
