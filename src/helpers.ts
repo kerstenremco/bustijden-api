@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { getCachedStop, getDelayByStopAndTrip, setCachedStop } from "./redis";
 import { BusStopTime, BusStopTimeWithRealTime, StopByName } from "./types";
 import dayjs from "dayjs";
+import { todayYyyymmdd } from "./helpers/time";
 
 const prisma = new PrismaClient();
 
@@ -32,11 +33,14 @@ export async function findStops(words: string[]) {
 
 export async function getStopTimesAtStop(
   stopIds: string[],
-  date: string
+  date?: string
 ): Promise<BusStopTimeWithRealTime[]> {
+  // init vars
+  const dateString: string = date || todayYyyymmdd();
+
   const serviceIds = await prisma.service.findMany({
     where: {
-      date,
+      date: dateString,
       exception_type: 1,
     },
     select: { service_id: true },
@@ -47,7 +51,7 @@ export async function getStopTimesAtStop(
   const cachedStopTimes: BusStopTime[] = [];
   const cachedStops: string[] = [];
   for (const stopId of stopIds) {
-    const cached = await getCachedStop(date, stopId);
+    const cached = await getCachedStop(dateString, stopId);
     if (cached) {
       cachedStopTimes.push(...cached);
       cachedStops.push(stopId);
@@ -86,7 +90,7 @@ export async function getStopTimesAtStop(
   for (const i in uncachedStopIds) {
     const id = uncachedStopIds[i];
     const stopTimesForStop = stops.filter((s) => s.stop_id === id);
-    await setCachedStop(date, id, stopTimesForStop);
+    await setCachedStop(dateString, id, stopTimesForStop);
   }
 
   // merge cached and uncached stops
@@ -97,7 +101,7 @@ export async function getStopTimesAtStop(
   for (const stop of stopsMerged) {
     // Check for real-time data
     const rtime = await getDelayByStopAndTrip(
-      date,
+      dateString,
       stop.stop_id,
       stop.trip.trip_id
     );
@@ -105,9 +109,9 @@ export async function getStopTimesAtStop(
     const canceled = rtime?.cancelled || false;
 
     // Calculate actual arrival time
-    const y = date.substring(0, 4);
-    const m = date.substring(4, 6);
-    const d = date.substring(6, 8);
+    const y = dateString.substring(0, 4);
+    const m = dateString.substring(4, 6);
+    const d = dateString.substring(6, 8);
     let [h, min] = stop.arrival_time.split(":").map((x) => parseInt(x));
 
     let calculatedArrivalTime = dayjs()
@@ -127,7 +131,11 @@ export async function getStopTimesAtStop(
     }
 
     // Calculate minutes until
-    const minutesUntil = calculatedArrivalTime.diff(dayjs(), "minute");
+    const xminutesUntil = 1111;
+    const minutesUntil = calculatedArrivalTime.diff(
+      dayjs.unix(1761328800),
+      "minute"
+    );
 
     // Add to result
     result.push({

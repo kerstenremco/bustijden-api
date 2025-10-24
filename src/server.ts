@@ -2,6 +2,8 @@ import express from "express";
 import cron from "node-cron";
 import { findStops, getStopTimesAtStop } from "./helpers";
 import { sync } from "./updaterealtime";
+import { unixToDayjs, todayYyyymmdd, yyyymmddToDayjs } from "./helpers/time";
+import dayjs from "dayjs";
 
 import cors from "cors";
 const app = express();
@@ -24,15 +26,23 @@ app.get("/stops", async (req, res) => {
   res.json(stops);
 });
 
+app.get("/test", async (req, res) => {
+  const now = dayjs();
+  const achtuur = now.set("hour", 20).set("minute", 0).set("second", 0);
+  const diff = achtuur.diff(now, "minute");
+  res.json({ now: now.unix(), achtuur: achtuur.unix(), diff });
+});
+
 app.get("/stop-times/stop", async (req, res) => {
   const { date, ids } = req.query;
-  if (typeof date !== "string" || typeof ids !== "string") {
+  if (typeof ids !== "string") {
     res.status(400).send("Missing date or ids query parameter!");
     return;
   }
+  let dateStr = date as string | undefined;
 
   const stopIdArray = ids.split(",");
-  const times = await getStopTimesAtStop(stopIdArray, date);
+  const times = await getStopTimesAtStop(stopIdArray, dateStr);
   res.json(times);
 });
 
