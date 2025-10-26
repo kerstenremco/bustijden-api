@@ -25,6 +25,7 @@ services:
       DATABASE_URL: postgres://gtfs:gtfsgtfs@database:5432/gtfs
       REDIS_URL: redis://redis:6379
       USER_AGENT: BUSTIJDEN-HAS/1.0 (app@remcokersten.nl)
+      TZ: Europe/Amsterdam
     depends_on:
       - database
       - redis
