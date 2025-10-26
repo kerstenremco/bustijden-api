@@ -1,19 +1,20 @@
 services:
   database:
-    image: postgres:16-trixie
+    build: ./database
     restart: always
     volumes:
-      - dbdata:/var/lib/postgresql/data
-      - ${PWD}/scripts/importstaticdata.sh:/opt/importstaticdata.sh:ro
+      - bustijdenapi_dbdata:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: gtfs
       POSTGRES_USER: gtfs
       POSTGRES_PASSWORD: gtfsgtfs
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-bookworm
+    hostname: redis
     restart: always
-  bustijden:
-    image: bustijdenapi:0.9.1
+  api:
+    build: ./api
+    hostname: api
     restart: always
     ports:
       - "3000:3000"
@@ -25,5 +26,8 @@ services:
       - database
       - redis
 
+networks:
+  default:
+    name: bustijdenapi
 volumes:
-  dbdata:
+  bustijdenapi_dbdata:

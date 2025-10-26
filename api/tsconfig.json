@@ -1,15 +1,3 @@
-// {
-//   "compilerOptions": {
-//     "sourceMap": true,
-//     "outDir": "dist",
-//     "strict": true,
-//     "lib": ["esnext"],
-//     "esModuleInterop": true,
-//     "rootDir": "src"
-//   },
-//   "include": ["src/"]
-// }
-
 {
   "compilerOptions": {
     /* Base Options: */
@@ -21,6 +9,7 @@
     "moduleDetection": "force",
     "isolatedModules": true,
     "rootDir": "src",
+    "noImplicitAny": false,
 
     /* Strictness */
     "strict": true,

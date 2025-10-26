@@ -3,7 +3,6 @@ set -e
 
 read -p "Download new file (y/n)?" choice
 if [ "$choice" == "y" ]; then
-    apt update && apt install -y wget unzip
     echo "Downloading data"
     rm -f gtfs-nl.zip
     rm -f *.txt
