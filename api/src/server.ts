@@ -59,4 +59,4 @@ app.use((_req, res, _next) => {
 });
 
 app.listen(3000, () => logMessage(LogType.INFO, LogSource.API, "API server started!"));
-//cron.schedule("30 */2 * * * *", sync);
+cron.schedule("30 */2 * * * *", sync);
