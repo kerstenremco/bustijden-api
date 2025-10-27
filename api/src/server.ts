@@ -1,6 +1,6 @@
 import express from "express";
 import cron from "node-cron";
-import { findStops, getStopTimesAtStop, getAllStopIds } from "./helpers";
+import { findStops, getStopTimesAtStop, getAllStopIds, getAllStops } from "./helpers";
 import { sync } from "./updaterealtime";
 
 import cors from "cors";
@@ -27,20 +27,20 @@ app.get("/stops/:baseKey", async (req, res) => {
 });
 
 app.get("/stops", async (req, res) => {
-  const { q } = req.query;
-  if (typeof q !== "string") {
-    res.status(400).send("Missing q query parameter");
-    return;
+  const { q, all } = req.query;
+  if (all === "1") {
+    const stops = await getAllStops();
+    return res.json(stops);
+  } else if (typeof q === "string") {
+    const qWords = q.split(" ").filter((w) => w.length > 0);
+    if (qWords.length === 0) {
+      return res.status(400).json({ error: "Empty q query parameter" });
+    }
+    const stops = await findStops(qWords);
+    return res.json(stops);
   }
-  const qWords = q.split(" ").filter((w) => w.length > 0);
-  if (qWords.length === 0) {
-    res.status(400).send("Empty q query parameter");
-    return;
-  }
-
-  const stops = await findStops(qWords);
-  res.json(stops);
+  return res.status(400).json({ error: "Unknown action" });
 });
 
 app.listen(3000, () => console.log("Listening on port 3000!"));
-cron.schedule("40 */1 * * * *", sync);
+// cron.schedule("30 */2 * * * *", sync);

@@ -38,6 +38,13 @@ export async function findStops(words: string[]) {
   return result;
 }
 
+export async function getAllStops(): Promise<string[]> {
+  const stops = await prisma.stop.findMany({
+    select: { stop_name: true },
+  });
+  return stops.map((s) => s.stop_name).filter((s) => s != null);
+}
+
 export async function getAllStopIds(name: string): Promise<string[]> {
   const stops = await prisma.stop.findMany({
     where: { stop_name: name },
