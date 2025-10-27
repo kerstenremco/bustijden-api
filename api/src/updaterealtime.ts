@@ -4,6 +4,7 @@ import { realtimeKey, redisClient } from "./redis";
 import dotenv from "dotenv";
 dotenv.config();
 import { StopTimeUpdate } from "./types";
+import { logMessage, LogSource, LogType } from "./helpers/logger";
 
 async function getLastModifiedHeader(): Promise<string | null> {
   const result = await redisClient.get("lastModifiedHeader");
@@ -40,7 +41,7 @@ async function fetchFeed(): Promise<transit_realtime.FeedMessage> {
   return feed;
 }
 
-async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<void> {
+async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<Object> {
   const counter = {
     cancelled: 0,
     delayed: 0,
@@ -112,16 +113,20 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<voi
     pipeline.setEx(item.key, 300, JSON.stringify(item.body));
   });
   await pipeline.exec();
-  console.log(counter);
+  return counter;
 }
 
 export async function sync() {
   try {
-    console.log("[RTUPDATE] Starting GTFS-RT sync...");
+    logMessage(LogType.INFO, LogSource.REALTIMESYNC, "Starting GTFS-RT sync...");
     const feed = await fetchFeed();
-    await storeFeedInRedis(feed);
-    console.log("[RTUPDATE] Feed stored in Redis successfully.");
+    const result = await storeFeedInRedis(feed);
+    logMessage(LogType.INFO, LogSource.REALTIMESYNC, `GTFS-RT sync done! ${JSON.stringify(result)}`);
   } catch (error) {
-    console.error("[RTUPDATE] Error:", error);
+    let errorMessage = "Unknow error while syncing";
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`;
+    }
+    logMessage(LogType.ERROR, LogSource.REALTIMESYNC, errorMessage);
   }
 }

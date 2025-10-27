@@ -5,6 +5,7 @@ import { sync } from "./updaterealtime";
 
 import cors from "cors";
 import { baseKeyToStop } from "./helpers/stops";
+import { logMessage, LogSource, LogType } from "./helpers/logger";
 const app = express();
 // cors
 app.use(cors());
@@ -45,5 +46,5 @@ app.use((_req, res, _next) => {
   res.status(404).send();
 });
 
-app.listen(3000, () => console.log("Listening on port 3000!"));
-// cron.schedule("30 */2 * * * *", sync);
+app.listen(3000, () => logMessage(LogType.INFO, LogSource.API, "API server started!"));
+cron.schedule("30 */2 * * * *", sync);
