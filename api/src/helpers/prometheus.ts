@@ -12,6 +12,6 @@ register.registerMetric(apiCounter);
 export const realTimeUpdateCounter = new promClient.Counter({
   name: "rt_updates",
   help: "Realtime updates counter",
-  labelNames: ["cancelled", "delayed", "skipped", "error"],
+  labelNames: ["type"],
 });
 register.registerMetric(realTimeUpdateCounter);

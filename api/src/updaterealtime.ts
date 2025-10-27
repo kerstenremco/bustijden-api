@@ -43,12 +43,6 @@ async function fetchFeed(): Promise<transit_realtime.FeedMessage> {
 }
 
 async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<void> {
-  const counter = {
-    cancelled: 0,
-    delayed: 0,
-    skipped: 0,
-    error: 0,
-  };
   const result: { key: string; body: StopTimeUpdate }[] = [];
 
   // Filter out all tripUpdates
@@ -57,7 +51,7 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<voi
     if (entity.tripUpdate) {
       tripUpdates.push(entity.tripUpdate);
     } else {
-      counter.error++;
+      realTimeUpdateCounter.inc({ type: "error_not_a_trip_update" });
     }
   });
 
@@ -67,14 +61,14 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<voi
     const tripId = tripUpdate.trip.tripId;
 
     if (!date || !tripId) {
-      counter.error++;
+      realTimeUpdateCounter.inc({ type: "error_no_date_or_trip_id" });
       return;
     }
 
     tripUpdate.stopTimeUpdate?.forEach((stopTimeUpdate) => {
       const stopId = stopTimeUpdate.stopId;
       if (!stopId) {
-        counter.error++;
+        realTimeUpdateCounter.inc({ type: "error_no_stop_id" });
         return;
       }
 
@@ -86,17 +80,17 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<voi
       const delay = Math.max(delayArrival, delayDeparture);
 
       if (!cancelled && !scheduled) {
-        counter.error++;
+        realTimeUpdateCounter.inc({ type: "error_not_cancelled_not_scheduled" });
         return;
       }
       if (scheduled && !delay) {
-        counter.skipped++;
+        realTimeUpdateCounter.inc({ type: "skipped_because_0_delay" });
         return;
       }
       if (cancelled) {
-        counter.cancelled++;
+        realTimeUpdateCounter.inc({ type: "cancelled" });
       } else {
-        counter.delayed++;
+        realTimeUpdateCounter.inc({ type: "delayed" });
       }
       result.push({
         key: realtimeKey(date, stopId, tripId),
@@ -111,9 +105,6 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<voi
     pipeline.setEx(item.key, 300, JSON.stringify(item.body));
   });
   await pipeline.exec();
-
-  // Write counter
-  realTimeUpdateCounter.inc({ cancelled: counter.cancelled, delayed: counter.delayed, skipped: counter.skipped, error: counter.error });
 }
 
 export async function sync() {
