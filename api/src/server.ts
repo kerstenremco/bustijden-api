@@ -17,13 +17,12 @@ app.get("/stops/:baseKey", async (req, res) => {
   const stopName = baseKeyToStop(baseKey);
   const stops = await getAllStopIds(stopName);
   if (stops.length === 0) {
-    res.status(404).send("Stop not found");
-    return;
+    return res.status(404).json({ error: "Stop not found" });
   }
 
   const times = await getStopTimesAtStop(stops, dateStr);
 
-  res.send(times);
+  res.json(times);
 });
 
 app.get("/stops", async (req, res) => {
@@ -40,6 +39,10 @@ app.get("/stops", async (req, res) => {
     return res.json(stops);
   }
   return res.status(400).json({ error: "Unknown action" });
+});
+
+app.use((_req, res, _next) => {
+  res.status(404).send();
 });
 
 app.listen(3000, () => console.log("Listening on port 3000!"));
