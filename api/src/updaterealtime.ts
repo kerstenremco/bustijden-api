@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import { StopTimeUpdate } from "./types";
 import { logMessage, LogSource, LogType } from "./helpers/logger";
+import { realTimeUpdateCounter } from "./helpers/prometheus";
 
 async function getLastModifiedHeader(): Promise<string | null> {
   const result = await redisClient.get("lastModifiedHeader");
@@ -41,15 +42,12 @@ async function fetchFeed(): Promise<transit_realtime.FeedMessage> {
   return feed;
 }
 
-async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<Object> {
+async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<void> {
   const counter = {
     cancelled: 0,
     delayed: 0,
-    skippedBecauseDelayZero: 0,
-    errorUnhandledEntity: 0,
-    errorNoDataOrTripId: 0,
-    errorNoStopId: 0,
-    errorNoCancelNoScheduled: 0,
+    skipped: 0,
+    error: 0,
   };
   const result: { key: string; body: StopTimeUpdate }[] = [];
 
@@ -59,7 +57,7 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<Obj
     if (entity.tripUpdate) {
       tripUpdates.push(entity.tripUpdate);
     } else {
-      counter.errorUnhandledEntity++;
+      counter.error++;
     }
   });
 
@@ -69,14 +67,14 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<Obj
     const tripId = tripUpdate.trip.tripId;
 
     if (!date || !tripId) {
-      counter.errorNoDataOrTripId++;
+      counter.error++;
       return;
     }
 
     tripUpdate.stopTimeUpdate?.forEach((stopTimeUpdate) => {
       const stopId = stopTimeUpdate.stopId;
       if (!stopId) {
-        counter.errorNoStopId++;
+        counter.error++;
         return;
       }
 
@@ -88,11 +86,11 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<Obj
       const delay = Math.max(delayArrival, delayDeparture);
 
       if (!cancelled && !scheduled) {
-        counter.errorNoCancelNoScheduled++;
+        counter.error++;
         return;
       }
       if (scheduled && !delay) {
-        counter.skippedBecauseDelayZero++;
+        counter.skipped++;
         return;
       }
       if (cancelled) {
@@ -113,15 +111,17 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<Obj
     pipeline.setEx(item.key, 300, JSON.stringify(item.body));
   });
   await pipeline.exec();
-  return counter;
+
+  // Write counter
+  realTimeUpdateCounter.inc(counter);
 }
 
 export async function sync() {
   try {
     logMessage(LogType.INFO, LogSource.REALTIMESYNC, "Starting GTFS-RT sync...");
     const feed = await fetchFeed();
-    const result = await storeFeedInRedis(feed);
-    logMessage(LogType.INFO, LogSource.REALTIMESYNC, `GTFS-RT sync done! ${JSON.stringify(result)}`);
+    await storeFeedInRedis(feed);
+    logMessage(LogType.INFO, LogSource.REALTIMESYNC, "GTFS-RT sync done!");
   } catch (error) {
     let errorMessage = "Unknow error while syncing";
     if (error instanceof Error) {
