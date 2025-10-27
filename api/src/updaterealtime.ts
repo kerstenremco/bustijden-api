@@ -3,13 +3,7 @@ import fetch from "node-fetch";
 import { realtimeKey, redisClient } from "./redis";
 import dotenv from "dotenv";
 dotenv.config();
-
-export interface StopTimeUpdate {
-  key: string;
-  cancelled?: boolean;
-  delayArrival?: number | null;
-  delayDeparture?: number | null;
-}
+import { StopTimeUpdate } from "./types";
 
 async function getLastModifiedHeader(): Promise<string | null> {
   const result = await redisClient.get("lastModifiedHeader");
@@ -46,66 +40,79 @@ async function fetchFeed(): Promise<transit_realtime.FeedMessage> {
   return feed;
 }
 
-async function storeFeedInRedis(feed: transit_realtime.FeedMessage) {
-  const result: StopTimeUpdate[] = [];
+async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<void> {
+  const counter = {
+    cancelled: 0,
+    delayed: 0,
+    skippedBecauseDelayZero: 0,
+    errorUnhandledEntity: 0,
+    errorNoDataOrTripId: 0,
+    errorNoStopId: 0,
+    errorNoCancelNoScheduled: 0,
+  };
+  const result: { key: string; body: StopTimeUpdate }[] = [];
+
+  // Filter out all tripUpdates
+  const tripUpdates: transit_realtime.ITripUpdate[] = [];
   feed.entity.forEach((entity) => {
     if (entity.tripUpdate) {
-      const tripUpdate = entity.tripUpdate;
-      const date = tripUpdate.trip.startDate;
-      const tripId = tripUpdate.trip.tripId;
-      if (!date || !tripId) {
-        console.log(
-          "[RTUPDATE] Skipping tripUpdate due to missing data",
-          tripUpdate
-        );
-        return;
-      }
-      entity.tripUpdate.stopTimeUpdate?.forEach((stopTimeUpdate) => {
-        const stopId = stopTimeUpdate.stopId;
-        const cancelled = stopTimeUpdate.scheduleRelationship === 1;
-        const delayArrival = stopTimeUpdate.arrival?.delay;
-        const delayDeparture = stopTimeUpdate.departure?.delay;
-        if (!stopId) {
-          if (tripUpdate.trip.scheduleRelationship === 3) return; // TODO: What to do with this?
-          console.log(
-            "[RTUPDATE] Skipping stopTimeUpdate due to missing stopId",
-            stopTimeUpdate
-          );
-          return;
-        }
-        const key = realtimeKey(date, stopId, tripId);
-        result.push({
-          key,
-          cancelled,
-          delayArrival,
-          delayDeparture,
-        });
-      });
+      tripUpdates.push(entity.tripUpdate);
     } else {
-      console.log("[RTUPDATE] TODO: no tripUpdate", entity);
+      counter.errorUnhandledEntity++;
     }
   });
 
-  // Filter out entries with no delay and not cancelled
-  const filtered = result.filter(
-    (item) =>
-      item.cancelled || item.delayArrival !== 0 || item.delayDeparture !== 0
-  );
+  // Loop over
+  tripUpdates.forEach((tripUpdate) => {
+    const date = tripUpdate.trip.startDate;
+    const tripId = tripUpdate.trip.tripId;
+
+    if (!date || !tripId) {
+      counter.errorNoDataOrTripId++;
+      return;
+    }
+
+    tripUpdate.stopTimeUpdate?.forEach((stopTimeUpdate) => {
+      const stopId = stopTimeUpdate.stopId;
+      if (!stopId) {
+        counter.errorNoStopId++;
+        return;
+      }
+
+      const cancelled = stopTimeUpdate.scheduleRelationship === 1;
+      // TODO: NO_DATA?
+      const scheduled = stopTimeUpdate.scheduleRelationship === 0 || stopTimeUpdate.scheduleRelationship === 2;
+      const delayArrival = stopTimeUpdate.arrival?.delay ?? 0;
+      const delayDeparture = stopTimeUpdate.arrival?.delay ?? 0;
+      const delay = Math.max(delayArrival, delayDeparture);
+
+      if (!cancelled && !scheduled) {
+        counter.errorNoCancelNoScheduled++;
+        return;
+      }
+      if (scheduled && !delay) {
+        counter.skippedBecauseDelayZero++;
+        return;
+      }
+      if (cancelled) {
+        counter.cancelled++;
+      } else {
+        counter.delayed++;
+      }
+      result.push({
+        key: realtimeKey(date, stopId, tripId),
+        body: { cancelled, delay },
+      });
+    });
+  });
 
   // Store in Redis with pipeline
   const pipeline = redisClient.multi();
-  filtered.forEach((item) => {
-    pipeline.setEx(
-      item.key,
-      300,
-      JSON.stringify({
-        cancelled: item.cancelled,
-        delayArrival: item.delayArrival,
-        delayDeparture: item.delayDeparture,
-      })
-    );
+  result.forEach((item) => {
+    pipeline.setEx(item.key, 300, JSON.stringify(item.body));
   });
   await pipeline.exec();
+  console.log(counter);
 }
 
 export async function sync() {
@@ -118,11 +125,3 @@ export async function sync() {
     console.error("[RTUPDATE] Error:", error);
   }
 }
-
-// StopTimeUpdate {
-//  stopSequence: 7,
-//  arrival: StopTimeEvent { delay: 0, time: [Long] },
-//  departure: StopTimeEvent { delay: 0, time: [Long] },
-//  stopId: '3153072',
-//  scheduleRelationship: 0
-// }

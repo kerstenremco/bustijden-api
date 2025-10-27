@@ -24,14 +24,10 @@ export async function findStops(words: string[]) {
   // @ts-ignore
   const unnames: Set<string> = new Set(stopsQuery.map((x) => x.stop_name));
   // filter strings
-  const uniqueNames = Array.from(unnames).filter(
-    (x) => x !== null && x !== undefined
-  );
+  const uniqueNames = Array.from(unnames).filter((x) => x !== null && x !== undefined);
 
   uniqueNames.forEach((name) => {
-    const stops = stopsQuery
-      .filter((s) => s.stop_name == name)
-      .map((s) => s.stop_id);
+    const stops = stopsQuery.filter((s) => s.stop_name == name).map((s) => s.stop_id);
     result.push({
       name: name,
       baseKey: stopToBaseKey(name),
@@ -50,10 +46,7 @@ export async function getAllStopIds(name: string): Promise<string[]> {
   return stops.map((s) => s.stop_id);
 }
 
-export async function getStopTimesAtStop(
-  stopIds: string[],
-  date?: string
-): Promise<BusStopTimeWithRealTime[]> {
+export async function getStopTimesAtStop(stopIds: string[], date?: string): Promise<BusStopTimeWithRealTime[]> {
   // init vars
   const dateString: string = date || todayYyyymmdd();
 
@@ -77,9 +70,7 @@ export async function getStopTimesAtStop(
     }
   }
 
-  const uncachedStopIds = stopIds.filter(
-    (id) => !cachedStops.some((s) => s === id)
-  );
+  const uncachedStopIds = stopIds.filter((id) => !cachedStops.some((s) => s === id));
 
   //Find stops in DB
   const stops: BusStopTime[] = await prisma.stopTime.findMany({
@@ -119,28 +110,18 @@ export async function getStopTimesAtStop(
   const result: BusStopTimeWithRealTime[] = [];
   for (const stop of stopsMerged) {
     // Check for real-time data
-    const rtime = await getDelayByStopAndTrip(
-      dateString,
-      stop.stop_id,
-      stop.trip.trip_id
-    );
-    const delayInSeconds = rtime?.delayArrival || 0;
+    const rtime = await getDelayByStopAndTrip(dateString, stop.stop_id, stop.trip.trip_id);
+    const delayInSeconds = rtime?.delay ?? 0;
     const canceled = rtime?.cancelled || false;
 
     // Calculate actual arrival time
     let [h, min] = stop.arrival_time.split(":").map((x) => parseInt(x));
 
-    let calculatedArrivalTime = yyyymmddToDayjs(dateString)!
-      .set("hour", h)
-      .set("minute", min)
-      .set("second", 0)
-      .add(delayInSeconds, "second");
+    let calculatedArrivalTime = yyyymmddToDayjs(dateString)!.set("hour", h).set("minute", min).set("second", 0).add(delayInSeconds, "second");
 
     // Round
     if (calculatedArrivalTime.second() > 0) {
-      calculatedArrivalTime = calculatedArrivalTime
-        .add(1, "minute")
-        .set("second", 0);
+      calculatedArrivalTime = calculatedArrivalTime.add(1, "minute").set("second", 0);
     }
 
     // Calculate minutes until

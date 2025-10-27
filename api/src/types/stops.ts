@@ -37,3 +37,8 @@ export interface StopByName {
   baseKey: string;
   stops: string[];
 }
+
+export interface StopTimeUpdate {
+  cancelled: boolean;
+  delay: number;
+}

@@ -3,3 +3,4 @@ DS_Store
 dist/
 .env
 .envv
+api/src/debug_feed.pb

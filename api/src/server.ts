@@ -43,4 +43,4 @@ app.get("/stops", async (req, res) => {
 });
 
 app.listen(3000, () => console.log("Listening on port 3000!"));
-cron.schedule("30 */2 * * * *", sync);
+cron.schedule("40 */1 * * * *", sync);
