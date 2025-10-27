@@ -28,7 +28,7 @@ export interface BusStopTimeWithRealTime {
   stopName: string | null;
   minutesUntil: number;
   delayInSeconds: number;
-  canceled: boolean;
+  cancelled: boolean;
   calculatedArrivalTime: string;
 }
 

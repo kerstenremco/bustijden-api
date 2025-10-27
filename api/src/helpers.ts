@@ -1,8 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { getCachedStop, getDelayByStopAndTrip, setCachedStop } from "./redis";
-import { BusStopTime, BusStopTimeWithRealTime, StopByName } from "./types";
+import { BusStopTime, StopByName, StopTimeApi } from "./types";
 import dayjs from "dayjs";
-import { todayYyyymmdd, yyyymmddToDayjs } from "./helpers/time";
+import { todayYyyymmdd, yyyymmddToDayjs, formatTimeStringToHM } from "./helpers/time";
 import { stopToBaseKey } from "./helpers/stops";
 
 const prisma = new PrismaClient();
@@ -46,7 +46,7 @@ export async function getAllStopIds(name: string): Promise<string[]> {
   return stops.map((s) => s.stop_id);
 }
 
-export async function getStopTimesAtStop(stopIds: string[], date?: string): Promise<BusStopTimeWithRealTime[]> {
+export async function getStopTimesAtStop(stopIds: string[], date?: string): Promise<StopTimeApi[]> {
   // init vars
   const dateString: string = date || todayYyyymmdd();
 
@@ -107,12 +107,12 @@ export async function getStopTimesAtStop(stopIds: string[], date?: string): Prom
   const stopsMerged = [...cachedStopTimes, ...stops];
 
   // Inject RT data and calculate actual arrival time and minutes until
-  const result: BusStopTimeWithRealTime[] = [];
+  const result: StopTimeApi[] = [];
   for (const stop of stopsMerged) {
     // Check for real-time data
     const rtime = await getDelayByStopAndTrip(dateString, stop.stop_id, stop.trip.trip_id);
     const delayInSeconds = rtime?.delay ?? 0;
-    const canceled = rtime?.cancelled || false;
+    const cancelled = rtime?.cancelled || false;
 
     // Calculate actual arrival time
     let [h, min] = stop.arrival_time.split(":").map((x) => parseInt(x));
@@ -130,18 +130,16 @@ export async function getStopTimesAtStop(stopIds: string[], date?: string): Prom
     // Add to result
     result.push({
       stopId: stop.stop_id,
-      arrivalTime: stop.arrival_time,
-      departureTime: stop.departure_time,
-      stopHeadsign: stop.stop_headsign,
       tripId: stop.trip.trip_id,
-      tripHeadsign: stop.trip.trip_headsign,
+      headSign: stop.stop_headsign ?? stop.trip.trip_headsign,
       routeShortName: stop.trip.route.route_short_name,
       routeLongName: stop.trip.route.route_long_name,
-      stopName: stop.stop.stop_name,
+      arrivalTime: formatTimeStringToHM(stop.arrival_time),
+      departureTime: formatTimeStringToHM(stop.departure_time),
+      calculatedArrivalTime: calculatedArrivalTime.format("HH:mm"),
       minutesUntil,
       delayInSeconds,
-      canceled,
-      calculatedArrivalTime: calculatedArrivalTime.format("HH:mm:ss"),
+      cancelled,
     });
   }
 
