@@ -113,7 +113,7 @@ async function storeFeedInRedis(feed: transit_realtime.FeedMessage): Promise<voi
   await pipeline.exec();
 
   // Write counter
-  realTimeUpdateCounter.inc(counter);
+  realTimeUpdateCounter.inc({ cancelled: counter.cancelled, delayed: counter.delayed, skipped: counter.skipped, error: counter.error });
 }
 
 export async function sync() {
